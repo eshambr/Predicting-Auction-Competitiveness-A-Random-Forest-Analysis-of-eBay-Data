@@ -1,0 +1,114 @@
+---
+title: "Analysis of eBay Auction Data"
+author: "Esham Bin Rashid"
+date: "`r Sys.Date()`"
+output:
+  word_document:
+    toc: true
+  pdf_document:
+    toc: true
+  html_document:
+    theme: lumen
+    toc: true
+    toc_float: true
+    fig_caption: true
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+knitr::knit_hooks$set(append_name = function(before, options) {
+  if (before) {
+    return("")
+  } else {
+    return(paste("<div style='text-align: left; font-style: italic;'>- Esham Bin Rashid</div>", sep="\n"))
+  }
+})
+opts_chunk$set(append_name = TRUE,echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+# Abstract
+
+The objective is to build a model to classify eBay auctions as competitive or non-competitive based on a dataset detailing auctions from May–June 2004.
+
+# Introduction
+
+This analysis involves pre-processing the eBay auction dataset, applying classification models, and discussing their performances to predict auction competitiveness.
+
+# Data Loading and Preprocessing
+
+```{r}
+library(tidyverse)
+library(randomForest)
+library(caret)
+library(pROC)
+library(ggplot2)
+```
+
+```{r}
+# Loading the data
+eBayAuctions_EBR <- read.csv("eBayAuctions.csv")
+# Converting 'Duration' to a categorical variable
+eBayAuctions_EBR$Duration <- as.factor(eBayAuctions_EBR$Duration)
+# Converting 'Competitive.' to a cateforical variables with two levels
+eBayAuctions_EBR$Competitive. <- factor(eBayAuctions_EBR$Competitive., levels = c(0,1), labels = c("Noncompetitive", "Competitive"))
+# Checking the structure of the dataframe
+str(eBayAuctions_EBR)
+```
+
+# Auction Data Summary
+
+```{r}
+summary(eBayAuctions_EBR)
+```
+
+# Methodology
+
+For this analysis random forest classifier for this task due to its robustness and ability to handle both numerical and categorical data effectively.
+
+# Model Building and Validation
+
+```{r}
+set.seed(2024)
+
+# Splitting the data into training and validation sets
+training_index <- createDataPartition(eBayAuctions_EBR$Competitive., p = 0.75, list = FALSE)
+training_data <- eBayAuctions_EBR[training_index, ]
+validation_data <- eBayAuctions_EBR[-training_index, ]
+```
+
+```{r}
+# Training the random forest model
+rf_model <- randomForest(Competitive. ~ ., data = training_data, ntree = 100)
+# Viewing the random forest model
+rf_model
+```
+
+# Model Evaluation
+
+```{r}
+# Prediction and confusion matrix on training data
+training_preds <- predict(rf_model, training_data)
+confusionMatrix(training_preds, training_data$Competitive.)
+```
+
+```{r}
+# Prediction and confusion matrix on validation data
+validation_preds <- predict(rf_model, validation_data)
+confusionMatrix(validation_preds, validation_data$Competitive.)
+```
+
+# Graphical Evaluation
+
+```{r}
+prob <- predict(rf_model, validation_data, type = "prob")[, 2]
+lift_df <- data.frame(actual = validation_data$Competitive, prob = prob)
+lift_obj <- lift(lift_df$actual ~ lift_df$prob)
+
+plot(lift_obj, main = "Lift Chart", xlab = "Percentile", ylab = "Lift")
+```
+
+# Conclusion
+
+After analyzing the confusion matrix and the lift chart I can confidently say that the model has a good predictive power, especially in the top percentiles that means, the model is quite effective in ranking the cases by their likelihood of being a positive instance that is being competitive in the auction.By using this model ebay can predict whether an auction is going to competitive or not based on the given variables.
+
+Report Made By - Esham Bin Rashid, Student ID: 00864931, Graduate Student, MS in Business Analytics, University of New Haven
